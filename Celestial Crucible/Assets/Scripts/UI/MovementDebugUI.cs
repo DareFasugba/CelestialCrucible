@@ -8,6 +8,8 @@ public class MovementDebugUI : MonoBehaviour
     {
         GUI.Label(new Rect(10, 10, 400, 30), "Velocity: " + player.GetVelocity());
         GUI.Label(new Rect(10, 30, 400, 30), "Grounded: " + player.IsGrounded());
+        GUI.Label(new Rect(10, 50, 400, 30), "MoveDir: " + player.GetMoveDirection());
     }
 }
+
 

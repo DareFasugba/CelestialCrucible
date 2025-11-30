@@ -10,6 +10,7 @@ public class AdvancedPlayerMovement : MonoBehaviour
     public float acceleration = 12f;
     public float deceleration = 14f;
     public float airControl = 0.5f;
+    public float rotationSmooth = 10f; // how fast the player rotates to face movement
 
     [Header("Jumping")]
     public float jumpHeight = 2.2f;
@@ -23,6 +24,7 @@ public class AdvancedPlayerMovement : MonoBehaviour
 
     private Vector3 velocity;
     private Vector3 moveDirection;
+    private Animator animator;
 
     float coyoteCounter;
     float jumpBufferCounter;
@@ -30,10 +32,12 @@ public class AdvancedPlayerMovement : MonoBehaviour
 
     public Vector3 GetVelocity() => velocity;
     public bool IsGrounded() => isGrounded;
+    public Vector3 GetMoveDirection() => moveDirection;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        animator = GetComponentInChildren<Animator>(); //fixed
     }
 
     void Update()
@@ -43,7 +47,14 @@ public class AdvancedPlayerMovement : MonoBehaviour
         ApplyMovement();
         ApplyJumping();
         ApplyGravity();
+        ApplyRotation();
+        animator.SetFloat("Speed", moveDirection.magnitude);
     }
+
+void OnGUI()
+{
+    GUI.Label(new Rect(10, 10, 300, 30), "MoveDir: " + moveDirection);
+}
 
     void HandleGroundCheck()
     {
@@ -94,7 +105,6 @@ public class AdvancedPlayerMovement : MonoBehaviour
     {
         if (Input.GetButtonDown("Jump"))
             jumpBufferCounter = jumpBufferTime;
-
         else
             jumpBufferCounter -= Time.deltaTime;
 
@@ -110,5 +120,18 @@ public class AdvancedPlayerMovement : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }
+
+    void ApplyRotation()
+{
+    Vector3 lookDir = new Vector3(moveDirection.x, 0, moveDirection.z);
+
+    if (lookDir.sqrMagnitude > 0.001f)
+    {
+        Quaternion targetRot = Quaternion.LookRotation(lookDir);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 12f * Time.deltaTime);
+    }
 }
+
+}
+
 
