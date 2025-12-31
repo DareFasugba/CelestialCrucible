@@ -27,6 +27,13 @@ public class MobilePlayerMovement : MonoBehaviour
     private float coyoteCounter;
     private float jumpBufferCounter;
 
+    private Animator animator;
+
+    void Start()
+    {
+        animator = GetComponentInChildren<Animator>();
+    }
+
     void Update()
     {
         GroundCheck();
@@ -35,6 +42,7 @@ public class MobilePlayerMovement : MonoBehaviour
         ApplyJump();
         ApplyGravity();
         ApplyRotation();   // 🔥 added rotation like advanced controller
+        animator.SetFloat("Speed", moveVector.magnitude);
     }
 
     // -----------------------------------------------------------
@@ -50,6 +58,8 @@ public class MobilePlayerMovement : MonoBehaviour
             if (velocity.y < 0) velocity.y = -2f;
         }
         else coyoteCounter -= Time.deltaTime;
+
+        animator.SetBool("isGrounded", isGrounded);
     }
 
     // -----------------------------------------------------------
@@ -88,19 +98,23 @@ public class MobilePlayerMovement : MonoBehaviour
     // ROTATION — faces movement direction like AAA mobile titles
     // -----------------------------------------------------------
     void ApplyRotation()
-    {
-        Vector3 flatVel = new Vector3(moveVector.x, 0, moveVector.z);
+{
+    Vector3 flatMove = new Vector3(moveVector.x, 0, moveVector.z);
 
-        if (flatVel.sqrMagnitude > 0.001f)   // prevents snapping & jitter
-        {
-            Quaternion targetRot = Quaternion.LookRotation(flatVel);
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                targetRot,
-                rotateSpeed * Time.deltaTime
-            );
-        }
-    }
+    // Only rotate if we’re actually moving
+    if (flatMove.magnitude < 0.1f)
+        return;
+
+    Quaternion targetRot = Quaternion.LookRotation(flatMove.normalized);
+
+    // Smooth + clamp rotation speed
+    transform.rotation = Quaternion.Slerp(
+        transform.rotation,
+        targetRot,
+        rotateSpeed * Time.deltaTime
+    );
+}
+
 
     // -----------------------------------------------------------
     // JUMP + Buffer + Coyote Time
@@ -118,6 +132,7 @@ public class MobilePlayerMovement : MonoBehaviour
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             jumpBufferCounter = 0;
+            animator.SetTrigger("Jump");
         }
     }
 

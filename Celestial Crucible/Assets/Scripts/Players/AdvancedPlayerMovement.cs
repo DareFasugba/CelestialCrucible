@@ -71,6 +71,7 @@ void OnGUI()
         {
             coyoteCounter -= Time.deltaTime;
         }
+        animator.SetBool("isGrounded", isGrounded);
     }
 
     void HandleInput()
@@ -112,6 +113,8 @@ void OnGUI()
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             jumpBufferCounter = 0;
+
+            animator.SetTrigger("Jump");
         }
     }
 
