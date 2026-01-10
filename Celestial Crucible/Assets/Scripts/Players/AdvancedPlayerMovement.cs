@@ -34,6 +34,10 @@ public class AdvancedPlayerMovement : MonoBehaviour
     public bool IsGrounded() => isGrounded;
     public Vector3 GetMoveDirection() => moveDirection;
 
+//sprint features
+    public float sprintSpeed = 9f;
+    public bool allowSprint = true;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -85,7 +89,21 @@ void OnGUI()
         inputDir.Normalize();
 
         // Smooth acceleration
-        float targetSpeed = walkSpeed * inputDir.magnitude;
+        bool isSprinting = allowSprint
+                   && isGrounded
+                   && inputDir.magnitude > 0.1f
+                   && Input.GetKey(KeyCode.LeftShift);
+
+        if (animator.GetBool("IsAttacking"))
+        {
+            isSprinting = false;
+        }
+
+        float speed = isSprinting ? sprintSpeed : walkSpeed;
+        float targetSpeed = speed * inputDir.magnitude;
+
+        // Animator update
+        animator.SetBool("IsSprinting", isSprinting);
         float currentXZSpeed = new Vector3(moveDirection.x, 0, moveDirection.z).magnitude;
 
         if (targetSpeed > currentXZSpeed)
