@@ -38,6 +38,14 @@ public class AdvancedPlayerMovement : MonoBehaviour
     public float sprintSpeed = 9f;
     public bool allowSprint = true;
 
+    [Header("Camera FOV")]
+    public Camera playerCamera;
+    public float normalFOV = 60f;
+    public float sprintFOV = 72f;
+    public float fovLerpSpeed = 8f;
+
+    bool isSprinting;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -53,6 +61,7 @@ public class AdvancedPlayerMovement : MonoBehaviour
         ApplyGravity();
         ApplyRotation();
         animator.SetFloat("Speed", moveDirection.magnitude);
+        HandleCameraFOV();
     }
 
 void OnGUI()
@@ -89,7 +98,7 @@ void OnGUI()
         inputDir.Normalize();
 
         // Smooth acceleration
-        bool isSprinting = allowSprint
+        isSprinting = allowSprint
                    && isGrounded
                    && inputDir.magnitude > 0.1f
                    && Input.GetKey(KeyCode.LeftShift);
@@ -152,6 +161,25 @@ void OnGUI()
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 12f * Time.deltaTime);
     }
 }
+
+void HandleCameraFOV()
+{
+    if (playerCamera == null)
+        return;
+
+    // Optional: no FOV boost in air
+    if (!isGrounded)
+        return;
+
+    float targetFOV = isSprinting ? sprintFOV : normalFOV;
+
+    playerCamera.fieldOfView = Mathf.Lerp(
+        playerCamera.fieldOfView,
+        targetFOV,
+        fovLerpSpeed * Time.deltaTime
+    );
+}
+
 
 }
 

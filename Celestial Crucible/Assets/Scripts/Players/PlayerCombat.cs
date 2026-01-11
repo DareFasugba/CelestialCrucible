@@ -1,9 +1,12 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerCombat : MonoBehaviour
 {
     public Animator animator;
     bool canAttack = true;
+    public Button PunchButton;
+    public Button KickButton;
 
     public void PunchAttack() {
         
@@ -28,6 +31,9 @@ public class PlayerCombat : MonoBehaviour
     {
         canAttack = true;
         animator.SetBool("IsAttacking", false);
+
+        PunchButton.interactable = true;
+        KickButton.interactable = true;
     }
 
     // Called from animation event
@@ -35,6 +41,9 @@ public class PlayerCombat : MonoBehaviour
     {
         canAttack = false;
         animator.SetBool("IsAttacking", true);
+
+        PunchButton.interactable = false;
+        KickButton.interactable = false;
     }
 
     void Update() 

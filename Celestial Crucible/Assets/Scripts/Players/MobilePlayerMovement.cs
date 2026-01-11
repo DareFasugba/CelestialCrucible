@@ -27,7 +27,20 @@ public class MobilePlayerMovement : MonoBehaviour
     private float coyoteCounter;
     private float jumpBufferCounter;
 
+    [Header("Sprint")]
+    public float sprintSpeed = 11f;
+    private bool sprintHeld;
+
+    [Header("Camera FOV")]
+    public Camera playerCamera;
+    public float normalFOV = 60f;
+    public float sprintFOV = 70f;
+    public float fovLerpSpeed = 8f;
+
+
+
     private Animator animator;
+    private bool isSprinting;
 
     void Start()
     {
@@ -43,6 +56,7 @@ public class MobilePlayerMovement : MonoBehaviour
         ApplyGravity();
         ApplyRotation();   // 🔥 added rotation like advanced controller
         animator.SetFloat("Speed", moveVector.magnitude);
+        HandleCameraFOV();
     }
 
     // -----------------------------------------------------------
@@ -74,7 +88,18 @@ public class MobilePlayerMovement : MonoBehaviour
         input.y = 0f;
         input.Normalize();
 
-        float targetSpeed = speed * input.magnitude;
+        isSprinting =
+        sprintHeld &&
+        isGrounded &&
+        input.magnitude > 0.1f &&
+        !animator.GetBool("IsAttacking");
+        
+    float moveSpeed = isSprinting ? sprintSpeed : speed;
+    float targetSpeed = moveSpeed * input.magnitude;
+    
+    // Animator
+    animator.SetBool("IsSprinting", isSprinting);
+
         float currentSpeed = new Vector3(moveVector.x, 0, moveVector.z).magnitude;
 
         // Smooth acceleration + deceleration
@@ -135,6 +160,38 @@ public class MobilePlayerMovement : MonoBehaviour
             animator.SetTrigger("Jump");
         }
     }
+
+    // Called by UI Button (OnPointerDown)
+    public void SprintDown()
+    {
+        sprintHeld = true;
+    }
+
+    // Called by UI Button (OnPointerUp)
+    public void SprintUp()
+    {
+        sprintHeld = false;
+    }
+
+    void HandleCameraFOV()
+{
+    if (playerCamera == null) return;
+    if (!isGrounded)
+    return;
+
+
+    float targetFOV = isSprinting ? sprintFOV : normalFOV;
+
+    playerCamera.fieldOfView = Mathf.Lerp(
+        playerCamera.fieldOfView,
+        targetFOV,
+        fovLerpSpeed * Time.deltaTime
+    );
+    playerCamera.fieldOfView =
+    Mathf.Clamp(playerCamera.fieldOfView, normalFOV, sprintFOV);
+
+}
+
 
     // -----------------------------------------------------------
     // GRAVITY
