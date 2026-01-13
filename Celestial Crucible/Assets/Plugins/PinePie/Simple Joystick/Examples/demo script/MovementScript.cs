@@ -9,7 +9,7 @@ namespace PinePie.SimpleJoystick.Examples.DemoScript
     
         void Start()
         {
-            JoystickController[] joysticks = FindObjectsOfType<JoystickController>();
+            JoystickController[] joysticks = FindObjectsByType<JoystickController>(FindObjectsSortMode.None);
             foreach (var joystick in joysticks)
             {
                 if (joystick.name == "PinePie Joystick") joystickController = joystick;
