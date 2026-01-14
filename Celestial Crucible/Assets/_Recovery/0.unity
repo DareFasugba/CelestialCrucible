@@ -1303,6 +1303,12 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 0
+  sprintSpeed: 9
+  allowSprint: 1
+  playerCamera: {fileID: 0}
+  normalFOV: 60
+  sprintFOV: 72
+  fovLerpSpeed: 8
 --- !u!114 &1246571319
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1326,6 +1332,11 @@ MonoBehaviour:
   coyoteTime: 0.15
   jumpBufferTime: 0.12
   rotateSpeed: 14
+  sprintSpeed: 11
+  playerCamera: {fileID: 0}
+  normalFOV: 60
+  sprintFOV: 70
+  fovLerpSpeed: 8
 --- !u!95 &1246571320
 Animator:
   serializedVersion: 7
@@ -1361,6 +1372,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
   animator: {fileID: 1246571320}
+  PunchButton: {fileID: 0}
+  KickButton: {fileID: 0}
 --- !u!1 &1398810242
 GameObject:
   m_ObjectHideFlags: 0
