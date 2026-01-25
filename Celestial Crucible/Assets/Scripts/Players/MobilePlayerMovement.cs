@@ -7,28 +7,26 @@ public class MobilePlayerMovement : MonoBehaviour
     public MobileJoystick joystick;
 
     [Header("Movement")]
-    public float speed = 7f;                 
-    public float acceleration = 14f;        
-    public float deceleration = 16f;       
-    public float airControl = 0.55f;       
+    public float speed = 7f;
+    public float sprintSpeed = 11f;
+    public float acceleration = 14f;
+    public float deceleration = 16f;
+    public float airControl = 0.55f;
+
+    [Header("Ground Snap")]
+    public float groundSnapForce = 6f;
+
 
     [Header("Jumping")]
     public float jumpHeight = 2.2f;
     public float gravity = -35f;
-    public float coyoteTime = 0.15f;        
-    public float jumpBufferTime = 0.12f;    
+    public float coyoteTime = 0.15f;
+    public float jumpBufferTime = 0.12f;
 
     [Header("Rotation")]
-    public float rotateSpeed = 14f;  // Smoother & responsive rotation
-
-    private Vector3 velocity;
-    private Vector3 moveVector;
-    private bool isGrounded;
-    private float coyoteCounter;
-    private float jumpBufferCounter;
+    public float rotateSpeed = 14f;
 
     [Header("Sprint")]
-    public float sprintSpeed = 11f;
     private bool sprintHeld;
 
     [Header("Camera FOV")]
@@ -37,14 +35,36 @@ public class MobilePlayerMovement : MonoBehaviour
     public float sprintFOV = 70f;
     public float fovLerpSpeed = 8f;
 
+    [Header("Stamina")]
+    public float maxStamina = 100f;
+    public float sprintDrain = 20f;     // per second
+    public float jumpCost = 15f;
+    public float regenRate = 25f;       // per second
+    public float regenDelay = 0.8f;
 
+    [Header("Stamina UI")]
+    public RectTransform staminaFill;
+
+    private float currentStamina;
+    private float regenTimer;
+    private float staminaBarWidth;
+
+    private Vector3 velocity;
+    private Vector3 moveVector;
+    private bool isGrounded;
+    private bool isSprinting;
+    private float coyoteCounter;
+    private float jumpBufferCounter;
 
     private Animator animator;
-    private bool isSprinting;
 
     void Start()
     {
         animator = GetComponentInChildren<Animator>();
+        currentStamina = maxStamina;
+
+        if (staminaFill != null)
+            staminaBarWidth = staminaFill.sizeDelta.x;
     }
 
     void Update()
@@ -54,13 +74,15 @@ public class MobilePlayerMovement : MonoBehaviour
         ApplyMovement();
         ApplyJump();
         ApplyGravity();
-        ApplyRotation();   // 🔥 added rotation like advanced controller
-        animator.SetFloat("Speed", moveVector.magnitude);
+        ApplyRotation();
+        HandleStamina();
         HandleCameraFOV();
+
+        animator.SetFloat("Speed", moveVector.magnitude);
     }
 
     // -----------------------------------------------------------
-    // GROUND CHECK (coyote time handling)
+    // GROUND CHECK
     // -----------------------------------------------------------
     void GroundCheck()
     {
@@ -69,7 +91,6 @@ public class MobilePlayerMovement : MonoBehaviour
         if (isGrounded)
         {
             coyoteCounter = coyoteTime;
-            if (velocity.y < 0) velocity.y = -2f;
         }
         else coyoteCounter -= Time.deltaTime;
 
@@ -77,32 +98,34 @@ public class MobilePlayerMovement : MonoBehaviour
     }
 
     // -----------------------------------------------------------
-    // JOYSTICK INPUT (camera-relative)
+    // INPUT
     // -----------------------------------------------------------
     void HandleInput()
     {
         float x = joystick.Horizontal();
         float z = joystick.Vertical();
 
-        Vector3 input = (Camera.main.transform.right * x) + (Camera.main.transform.forward * z);
+        Vector3 input =
+            Camera.main.transform.right * x +
+            Camera.main.transform.forward * z;
+
         input.y = 0f;
         input.Normalize();
 
         isSprinting =
-        sprintHeld &&
-        isGrounded &&
-        input.magnitude > 0.1f &&
-        !animator.GetBool("IsAttacking");
-        
-    float moveSpeed = isSprinting ? sprintSpeed : speed;
-    float targetSpeed = moveSpeed * input.magnitude;
-    
-    // Animator
-    animator.SetBool("IsSprinting", isSprinting);
+            sprintHeld &&
+            isGrounded &&
+            input.magnitude > 0.1f &&
+            currentStamina > 0f &&
+            !animator.GetBool("IsAttacking");
+
+        float moveSpeed = isSprinting ? sprintSpeed : speed;
+        float targetSpeed = moveSpeed * input.magnitude;
+
+        animator.SetBool("IsSprinting", isSprinting);
 
         float currentSpeed = new Vector3(moveVector.x, 0, moveVector.z).magnitude;
 
-        // Smooth acceleration + deceleration
         moveVector = Vector3.Lerp(
             moveVector,
             input * targetSpeed,
@@ -111,7 +134,7 @@ public class MobilePlayerMovement : MonoBehaviour
     }
 
     // -----------------------------------------------------------
-    // APPLY MOVEMENT
+    // MOVEMENT
     // -----------------------------------------------------------
     void ApplyMovement()
     {
@@ -120,33 +143,28 @@ public class MobilePlayerMovement : MonoBehaviour
     }
 
     // -----------------------------------------------------------
-    // ROTATION — faces movement direction like AAA mobile titles
+    // ROTATION
     // -----------------------------------------------------------
     void ApplyRotation()
-{
-    Vector3 flatMove = new Vector3(moveVector.x, 0, moveVector.z);
+    {
+        Vector3 flatMove = new Vector3(moveVector.x, 0, moveVector.z);
+        if (flatMove.magnitude < 0.1f) return;
 
-    // Only rotate if we’re actually moving
-    if (flatMove.magnitude < 0.1f)
-        return;
-
-    Quaternion targetRot = Quaternion.LookRotation(flatMove.normalized);
-
-    // Smooth + clamp rotation speed
-    transform.rotation = Quaternion.Slerp(
-        transform.rotation,
-        targetRot,
-        rotateSpeed * Time.deltaTime
-    );
-}
-
+        Quaternion targetRot = Quaternion.LookRotation(flatMove.normalized);
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            targetRot,
+            rotateSpeed * Time.deltaTime
+        );
+    }
 
     // -----------------------------------------------------------
-    // JUMP + Buffer + Coyote Time
+    // JUMP
     // -----------------------------------------------------------
     public void JumpButton()
     {
-        jumpBufferCounter = jumpBufferTime;
+        if (currentStamina >= jumpCost)
+            jumpBufferCounter = jumpBufferTime;
     }
 
     void ApplyJump()
@@ -157,56 +175,90 @@ public class MobilePlayerMovement : MonoBehaviour
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             jumpBufferCounter = 0;
+
+            currentStamina -= jumpCost;
+            regenTimer = regenDelay;
+
             animator.SetTrigger("Jump");
         }
     }
-
-    // Called by UI Button (OnPointerDown)
-    public void SprintDown()
-    {
-        sprintHeld = true;
-    }
-
-    // Called by UI Button (OnPointerUp)
-    public void SprintUp()
-    {
-        sprintHeld = false;
-    }
-
-    void HandleCameraFOV()
-{
-    if (playerCamera == null) return;
-    if (!isGrounded)
-    return;
-
-
-    float targetFOV = isSprinting ? sprintFOV : normalFOV;
-
-    playerCamera.fieldOfView = Mathf.Lerp(
-        playerCamera.fieldOfView,
-        targetFOV,
-        fovLerpSpeed * Time.deltaTime
-    );
-    playerCamera.fieldOfView =
-    Mathf.Clamp(playerCamera.fieldOfView, normalFOV, sprintFOV);
-
-}
-
 
     // -----------------------------------------------------------
     // GRAVITY
     // -----------------------------------------------------------
     void ApplyGravity()
+{
+    if (isGrounded && velocity.y <= 0f)
+    {
+        // Strong downward snap to keep feet planted
+        velocity.y = -groundSnapForce;
+    }
+    else
     {
         velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
     }
 
-    // OPTIONAL — hook for Animator later
-    public float GetSpeed() => moveVector.magnitude;
-    public Vector3 GetMoveVector() => moveVector;
-    public bool Grounded() => isGrounded;
+    controller.Move(Vector3.up * velocity.y * Time.deltaTime);
 }
+
+
+    // -----------------------------------------------------------
+    // STAMINA SYSTEM (RECTTRANSFORM BASED)
+    // -----------------------------------------------------------
+    void HandleStamina()
+    {
+        if (isSprinting)
+        {
+            currentStamina -= sprintDrain * Time.deltaTime;
+            regenTimer = regenDelay;
+        }
+        else
+        {
+            if (regenTimer > 0)
+                regenTimer -= Time.deltaTime;
+            else
+                currentStamina += regenRate * Time.deltaTime;
+        }
+
+        currentStamina = Mathf.Clamp(currentStamina, 0, maxStamina);
+
+        if (staminaFill != null)
+        {
+            float percent = currentStamina / maxStamina;
+            staminaFill.sizeDelta = new Vector2(
+                staminaBarWidth * percent,
+                staminaFill.sizeDelta.y
+            );
+        }
+    }
+
+    // -----------------------------------------------------------
+    // CAMERA FOV
+    // -----------------------------------------------------------
+    void HandleCameraFOV()
+    {
+        if (playerCamera == null || !isGrounded) return;
+
+        float targetFOV = isSprinting ? sprintFOV : normalFOV;
+
+        playerCamera.fieldOfView = Mathf.Lerp(
+            playerCamera.fieldOfView,
+            targetFOV,
+            fovLerpSpeed * Time.deltaTime
+        );
+    }
+
+    // -----------------------------------------------------------
+    // UI BUTTON HOOKS
+    // -----------------------------------------------------------
+    public void SprintDown() => sprintHeld = true;
+    public void SprintUp() => sprintHeld = false;
+
+    // OPTIONAL ACCESSORS
+    public float GetStamina() => currentStamina;
+    public bool IsSprinting() => isSprinting;
+}
+
 
 
 

@@ -44,8 +44,11 @@ public float surfaceSnapSpeed = 6f;
         ApplySwimMovement();
         ApplyRotation();
 
-        float flatSpeed = new Vector3(swimVelocity.x, 0, swimVelocity.z).magnitude;
-        animator.SetFloat("SwimSpeed", flatSpeed);
+        float flatSpeed = new Vector3(swimVelocity.x, 0f, swimVelocity.z).magnitude;
+        bool isMoving = flatSpeed > 0.15f;
+        animator.SetBool("IsSwimMoving", isMoving);
+        animator.SetFloat("SwimSpeed", Mathf.InverseLerp(0f, swimSpeed, flatSpeed));
+
     }
 
     // --------------------------------------------------
@@ -165,6 +168,9 @@ public float surfaceSnapSpeed = 6f;
         animator.SetBool("IsSwimming", true);
         animator.SetBool("IsAttacking", false);
         animator.SetFloat("SwimSpeed", 0f);
+
+        controller.detectCollisions = true;
+
     }
 
     void ExitWater()
@@ -177,6 +183,9 @@ public float surfaceSnapSpeed = 6f;
 
         animator.SetBool("IsSwimming", false);
         animator.SetFloat("SwimSpeed", 0f);
+
+        controller.detectCollisions = true;
+
     }
 }
 
