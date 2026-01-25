@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Linq;
 
 [RequireComponent(typeof(CharacterController))]
 public class SwimmingController : MonoBehaviour
@@ -9,17 +8,18 @@ public class SwimmingController : MonoBehaviour
 
     [Header("Swimming Movement")]
     public float swimSpeed = 4f;
-    public float verticalSwimSpeed = 3f;
-    public float waterDrag = 4f;
+    public float swimAcceleration = 8f;
+    public float rotationSpeed = 10f;
 
-    [Header("Water Surface")]
-    public float surfaceOffset = 2f;
-    public float surfaceSnapSpeed = 6f;
+    [Header("Water Surface Heights")]
+public float treadOffset = 2.3f;   // lower in water (idle)
+public float swimOffset = 1.9f;    // higher in water (moving)
+public float surfaceSnapSpeed = 6f;
 
     [Header("Disable While Swimming")]
     public MonoBehaviour keyboardMovement; // AdvancedPlayerMovement
     public MonoBehaviour mobileMovement;   // MobilePlayerMovement
-    public MonoBehaviour combatScript;     // PlayerCombat (optional)
+    public MonoBehaviour combatScript;
     public MobileJoystick joystick;        // optional
 
     Vector3 swimVelocity;
@@ -31,9 +31,9 @@ public class SwimmingController : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
 
-        // SAFETY RESET
         isSwimming = false;
         animator.SetBool("IsSwimming", false);
+        animator.SetFloat("SwimSpeed", 0f);
     }
 
     void Update()
@@ -67,58 +67,60 @@ public class SwimmingController : MonoBehaviour
             Camera.main.transform.forward * z;
 
         inputDir.y = 0f;
-        inputDir.Normalize();
+
+        if (inputDir.sqrMagnitude > 1f)
+            inputDir.Normalize();
 
         swimVelocity = Vector3.Lerp(
             swimVelocity,
             inputDir * swimSpeed,
-            Time.deltaTime * 8f
+            swimAcceleration * Time.deltaTime
         );
-
-        // Vertical swimming (jump disabled — reused for swim up)
-        if (Input.GetButton("Jump"))
-            swimVelocity.y = verticalSwimSpeed;
-        else if (Input.GetKey(KeyCode.LeftControl))
-            swimVelocity.y = -verticalSwimSpeed;
-        else
-            swimVelocity.y = Mathf.Lerp(swimVelocity.y, 0f, waterDrag * Time.deltaTime);
     }
 
     // --------------------------------------------------
-    // MOVEMENT + SURFACE SNAP
+    // MOVEMENT (SURFACE-LOCKED)
     // --------------------------------------------------
     void ApplySwimMovement()
-    {
-        // Horizontal
-        controller.Move(
-            new Vector3(swimVelocity.x, 0, swimVelocity.z) * Time.deltaTime
-        );
+{
+    // Horizontal movement
+    controller.Move(
+        new Vector3(swimVelocity.x, 0, swimVelocity.z) * Time.deltaTime
+    );
 
-        bool isTreading = animator.GetFloat("SwimSpeed") < 0.1f;
+    // Determine swim vs tread
+    bool isMoving =
+        new Vector3(swimVelocity.x, 0, swimVelocity.z).magnitude > 0.1f;
 
-        if (isTreading)
-        {
-            float targetY = waterSurfaceY - surfaceOffset;
-            float newY = Mathf.Lerp(
-                transform.position.y,
-                targetY,
-                surfaceSnapSpeed * Time.deltaTime
-            );
+    float targetOffset = isMoving ? swimOffset : treadOffset;
+    float targetY = waterSurfaceY - targetOffset;
 
-            controller.Move(Vector3.up * (newY - transform.position.y));
-        }
-        else
-        {
-            controller.Move(Vector3.up * swimVelocity.y * Time.deltaTime);
-        }
-    }
+    // Vertical input
+    float desiredY = transform.position.y + swimVelocity.y * Time.deltaTime;
+
+    // Clamp around target surface height
+    desiredY = Mathf.Clamp(
+        desiredY,
+        targetY - 0.3f,
+        targetY + 0.2f
+    );
+
+    float smoothY = Mathf.Lerp(
+        transform.position.y,
+        desiredY,
+        surfaceSnapSpeed * Time.deltaTime
+    );
+
+    controller.Move(Vector3.up * (smoothY - transform.position.y));
+}
+
 
     // --------------------------------------------------
     // ROTATION
     // --------------------------------------------------
     void ApplyRotation()
     {
-        Vector3 flatDir = new Vector3(swimVelocity.x, 0, swimVelocity.z);
+        Vector3 flatDir = new Vector3(swimVelocity.x, 0f, swimVelocity.z);
 
         if (flatDir.sqrMagnitude < 0.01f) return;
 
@@ -126,7 +128,7 @@ public class SwimmingController : MonoBehaviour
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
             targetRot,
-            10f * Time.deltaTime
+            rotationSpeed * Time.deltaTime
         );
     }
 
@@ -156,20 +158,19 @@ public class SwimmingController : MonoBehaviour
 
         waterSurfaceY = water.bounds.max.y;
 
-        // Disable movement & combat
         if (keyboardMovement) keyboardMovement.enabled = false;
         if (mobileMovement) mobileMovement.enabled = false;
         if (combatScript) combatScript.enabled = false;
 
         animator.SetBool("IsSwimming", true);
-        animator.SetBool("IsAttacking", false); // safety
+        animator.SetBool("IsAttacking", false);
+        animator.SetFloat("SwimSpeed", 0f);
     }
 
     void ExitWater()
     {
         isSwimming = false;
 
-        // Re-enable systems
         if (keyboardMovement) keyboardMovement.enabled = true;
         if (mobileMovement) mobileMovement.enabled = true;
         if (combatScript) combatScript.enabled = true;
@@ -178,4 +179,5 @@ public class SwimmingController : MonoBehaviour
         animator.SetFloat("SwimSpeed", 0f);
     }
 }
+
 
