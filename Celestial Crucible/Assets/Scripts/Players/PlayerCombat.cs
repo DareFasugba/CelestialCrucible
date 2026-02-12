@@ -1,32 +1,100 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class PlayerCombat : MonoBehaviour
 {
+    [Header("References")]
     public Animator animator;
-    bool canAttack = true;
+
+    [Header("UI")]
     public Button PunchButton;
     public Button KickButton;
+    public Button FireballButton;
 
-    public void PunchAttack() {
-        
+    [Header("Fireball")]
+    public GameObject fireballPrefab;
+    public Transform firePoint;
+    public float fireballSpeed = 15f;
+    public float fireballDelay = 0.6f;     // ⏱ delay before spawn
+    public float fireballCooldown = 1.5f;
+
+    bool canAttack = true;
+    bool canFireball = true;
+
+    // --------------------------------------------------
+    // BASIC ATTACKS
+    // --------------------------------------------------
+    public void PunchAttack()
+    {
         if (!canAttack) return;
-        
+
         animator.SetInteger("AttackType", 0);
         animator.SetTrigger("AttackTrigger");
         DisableAttack();
     }
 
-    public void KickAttack() {
-        
+    public void KickAttack()
+    {
         if (!canAttack) return;
-        
+
         animator.SetInteger("AttackType", 1);
         animator.SetTrigger("AttackTrigger");
         DisableAttack();
     }
-    
-    // Called from animation event
+
+    // --------------------------------------------------
+    // FIREBALL SPECIAL
+    // --------------------------------------------------
+    public void FireballAttack()
+    {
+        if (!canAttack || !canFireball) return;
+
+        animator.SetTrigger("Fireball");
+
+        StartCoroutine(DelayedFireball());
+        StartCoroutine(FireballCooldown());
+    }
+
+    IEnumerator DelayedFireball()
+    {
+        yield return new WaitForSeconds(fireballDelay);
+        SpawnFireball();
+    }
+
+    void SpawnFireball()
+    {
+        GameObject fireball = Instantiate(
+            fireballPrefab,
+            firePoint.position,
+            firePoint.rotation
+        );
+
+        Rigidbody rb = fireball.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = firePoint.forward * fireballSpeed;
+        }
+    }
+
+    IEnumerator FireballCooldown()
+    {
+        canFireball = false;
+
+        if (FireballButton != null)
+            FireballButton.interactable = false;
+
+        yield return new WaitForSeconds(fireballCooldown);
+
+        canFireball = true;
+
+        if (FireballButton != null)
+            FireballButton.interactable = true;
+    }
+
+    // --------------------------------------------------
+    // ANIMATION EVENTS (MELEE ONLY)
+    // --------------------------------------------------
     public void EnableAttack()
     {
         canAttack = true;
@@ -36,7 +104,6 @@ public class PlayerCombat : MonoBehaviour
         KickButton.interactable = true;
     }
 
-    // Called from animation event
     public void DisableAttack()
     {
         canAttack = false;
@@ -46,18 +113,20 @@ public class PlayerCombat : MonoBehaviour
         KickButton.interactable = false;
     }
 
-    void Update() 
+    // --------------------------------------------------
+    // KEYBOARD INPUT
+    // --------------------------------------------------
+    void Update()
     {
         if (Input.GetKeyDown(KeyCode.F))
-    {
-        Debug.Log("Light attack input detected");
-        PunchAttack();
-    }
+            PunchAttack();
 
-    if (Input.GetKeyDown(KeyCode.G))
-    {
-        Debug.Log("Heavy attack input detected");
-        KickAttack();
-    }
+        if (Input.GetKeyDown(KeyCode.G))
+            KickAttack();
+
+        if (Input.GetKeyDown(KeyCode.R))
+            FireballAttack();
     }
 }
+
+
